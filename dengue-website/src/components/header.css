@@ -1,0 +1,19 @@
+.header {
+    height: 80px;
+    transition: all 0.5s;
+    z-index: 998;
+    background:#011329;
+    color: #1CDAE6 !important;
+    font-family:"Audiowide", sans-serif !important;
+  }
+
+  .header.sticked {
+    height: 50px;
+  }
+  
+  .header .logo img {
+    max-height: 40px;
+    margin-right: 6px;
+  }
+  
+
