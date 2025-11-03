@@ -107,8 +107,8 @@ void factor(int indent) {
 }
 
 int main() {
-    // Example: id = id + int * int ;
-    vector<Token> tokens = {ID, ASSIGN, ID, PLUS, INT, TIMES, INT, SEMI, END};
+    // Example: id = id + int * int.  a = (b + c) * d ;
+    vector<Token> tokens = {ID, ASSIGN, LPAREN, ID, PLUS, ID, RPAREN, TIMES, ID, SEMI, END};
 
     lexer = new Lexer(tokens);
     getNextToken();
