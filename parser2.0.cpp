@@ -1,8 +1,6 @@
 #include "parser.h"
 #include <iostream>
-
-using std::cout;
-using std::string;
+using namespace std;
 
 // Constructor
 Parser::Parser(const std::vector<Token>& tokens)

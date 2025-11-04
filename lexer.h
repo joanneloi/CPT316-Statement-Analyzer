@@ -22,6 +22,8 @@ struct Token {
     int position;        // 0-based index in the original input
 };
 
+
+// ---------- TokenCounts model ----------
 struct TokenCounts {
     int identifiers = 0;
     int numbers = 0;
@@ -35,11 +37,16 @@ struct TokenCounts {
     }
 };
 
+TokenCounts countTokens(const std::vector<Token>& tokens);
+void printCounts(const TokenCounts& c);
+
 // ---------- LexicalError model ----------
 struct LexicalError {
     int position;        // 0-based
-    string message; // e.g., "invalid character '$'"
+    string message;      // e.g., "invalid character '$'"
 };
+
+void printLexicalErrors(const std::vector<LexicalError>& errors);
 
 // ---------- Lexer ----------
 class Lexer {
@@ -62,8 +69,7 @@ private:
 string tokenTypeName(TokenType t);
 // Utility printing/counting functions
 void printTokenStream(const std::vector<Token>& tokens);
-TokenCounts countTokens(const std::vector<Token>& tokens);
-void printCounts(const TokenCounts& c);
 
-void printLexicalErrors(const std::vector<LexicalError>& errors);
+
+
 
