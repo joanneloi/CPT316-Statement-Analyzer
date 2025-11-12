@@ -2,9 +2,7 @@
 #include <iomanip>
 #include <vector>
 #include "lexer.h"
-//#include "parser.h"
-#include "BU_parser.h"
- 
+#include "parser.h"
 using namespace std;
 
 static void runOnce(const string& input) {
@@ -31,13 +29,15 @@ static void runOnce(const string& input) {
     // 3. Run the Parser
     cout << "\n=== Parsing Result ===\n";
     Parser parser(tokens);
+    ParseResult result = parser.parse();
 
-    if (parser.parse()) {
-        cout << "Syntax correct.\n";
+    if (result.success) {
+        cout << "Input accepted. Parse tree:\n";
+        printTree(result.parseTree, 0);
     } else {
-        cout << "Syntax error found.\n";
+        cout << "Input rejected.\n";
+        handleParseError(tokens);
     }
-
     cout << "\n";
 }
 

@@ -1,191 +1,267 @@
-#include "parser.h"
 #include <iostream>
+#include <vector>
+#include <string>
+#include "lexer.h"
+#include "parser.h"
 using namespace std;
 
-// Constructor
-Parser::Parser(const std::vector<Token>& tokens)
-    : tokens_(tokens), pos_(0), indent_(0), valid_(true) {}
-
-// Utility functions
-const Token& Parser::peek() const {
-    if (pos_ < (int)tokens_.size()) return tokens_[pos_];
-    return tokens_.back(); // assume tokens has an END token
+// Utility: print parse tree
+void printTree(Node* node, int depth = 0) {
+    for (int i = 0; i < depth; ++i) cout << "  ";
+    cout << node->label << "\n";
+    for (auto* child : node->children)
+        printTree(child, depth + 1);
 }
 
-bool Parser::atEnd() const {
-    return peek().type == TokenType::END;
-}
+// ---------------- Bottom-Up Parser ----------------
 
-bool Parser::match(TokenType type) {
-    if (peek().type == type) {
-        pos_++;
-        return true;
-    }
-    return false;
-}
 
-bool Parser::expect(TokenType type) {
-    if (match(type)) return true;
-    error("Expected token missing: " + tokenTypeName(type));
-    valid_ = false;
-    return false;
-}
+Parser::Parser(const vector<Token>& t) : tokens(t), pos(0) {}
 
-void Parser::error(const string& msg) {
-    cout << "PARSER ERROR: " << msg << "\n";
-}
+// --- parse loop: only one place for syntax checks ---
+ParseResult Parser::parse() {
+    ParseResult result;
+    result.success = false;
+    result.parseTree = nullptr;
 
-// ---------- indentation helpers ----------
-void Parser::printNode(const string& name) {
-    cout << string(indent_, ' ') << name << "\n";
-}
-void Parser::indentPush() { indent_ += 2; }
-void Parser::indentPop()  { indent_ = (indent_ >= 2 ? indent_ - 2 : 0); }
-
-//--------------------------------------------
-// Grammar implementation
-//--------------------------------------------
-
-// <stmt> → id = <expr> ;
-bool Parser::stmt() {
-    printNode("<stmt>");
-    indentPush();
-
-    if (!expect(TokenType::IDENTIFIER)) { indentPop(); return false; }
-    printNode("id");
-
-    if (!expect(TokenType::ASSIGN)) { indentPop(); return false; }
-    printNode("=");
-
-    if (!expr()) { indentPop(); return false; }
-
-    if (!expect(TokenType::SEMICOLON)) { indentPop(); return false; }
-    printNode(";");
-
-    indentPop();
-    return true;
-}
-
-// <expr> → <term> <expr'>
-bool Parser::expr() {
-    printNode("<expr>");
-    indentPush();
-
-    if (!term()) { indentPop(); return false; }
-    if (!exprPrime()) { indentPop(); return false; }
-
-    indentPop();
-    return true;
-}
-
-// <expr'> → + <term> <expr'> | - <term> <expr'> | ε
-bool Parser::exprPrime() {
-    // print only if we're about to produce something OR to follow your desired format
-    // You earlier wanted expr' printed even when empty; if you prefer that, uncomment the next two lines.
-    // printNode("<expr'>");
-    // indentPush();
-
-    // We'll print <expr'> only when operator exists (this keeps output tidy but include expr' label).
-    if (peek().type == TokenType::PLUS || peek().type == TokenType::MINUS) {
-        printNode("<expr'>");
-        indentPush();
-
-        while (peek().type == TokenType::PLUS || peek().type == TokenType::MINUS) {
-            if (match(TokenType::PLUS)) {
-                printNode("+");
-            } else { // MINUS
-                match(TokenType::MINUS);
-                printNode("-");
-            }
-
-            if (!term()) { indentPop(); return false; }
+    while (true) {
+        // Accepted input
+        if (tokens[pos].type == TokenType::END &&
+            stack.size() == 1 &&
+            stack.back().symbol == "<stmt>") {
+            result.success = true;
+            result.parseTree = stack.back().node;
+            return result;
         }
 
-        // after processing chain of +/-
-        if (!exprPrime()) { indentPop(); return false; } // recursive tail (though while loop already handles chain)
-        indentPop();
-        return true;
+        bool reduced = tryReduce();
+
+        if (!reduced) {
+            // Safe shift
+            if (tokens[pos].type == TokenType::END) {
+                // Stop parsing, input ended
+                result.success = false;
+                result.stack = stack;  // capture current stack
+                result.errorPos = pos; // last token processed
+                return result;
+            }
+            shift();
+        }
+    }
+}
+
+
+void Parser::shift() {
+    Token t = tokens[pos++];
+    string symbol;
+
+    switch (t.type) {
+        case TokenType::IDENTIFIER: symbol = "id"; break;
+        case TokenType::NUMBER:     symbol = "int"; break;
+        case TokenType::PLUS:       symbol = "+"; break;
+        case TokenType::MINUS:      symbol = "-"; break;
+        case TokenType::MUL:        symbol = "*"; break;
+        case TokenType::DIV:        symbol = "/"; break;
+        case TokenType::ASSIGN:     symbol = "="; break;
+        case TokenType::LPAREN:     symbol = "("; break;
+        case TokenType::RPAREN:     symbol = ")"; break;
+        case TokenType::SEMICOLON:  symbol = ";"; break;
+        default: symbol = "invalid"; break;
     }
 
-    // epsilon: do nothing (no node printed)
-    return true;
+    Node* node = new Node(symbol);
+    stack.push_back({symbol, node});
+    cout << "Shift: " << symbol << "\n";
 }
 
-// <term> → <factor> <term'>
-bool Parser::term() {
-    printNode("<term>");
-    indentPush();
+bool Parser::tryReduce() {
+    // Grammar rules (RHS → LHS)
+    vector<pair<vector<string>, string>> rules = {
+        {{"id", "=", "<expr>", ";"}, "<stmt>"},
+        {{"<expr>", "+", "<term>"}, "<expr>"},
+        {{"<expr>", "-", "<term>"}, "<expr>"},
+        {{"<term>", "*", "<factor>"}, "<term>"},
+        {{"<term>", "/", "<factor>"}, "<term>"},
+        {{"<term>"}, "<expr>"},
+        {{"<factor>"}, "<term>"},
+        {{"(", "<expr>", ")"}, "<factor>"},
+        {{"int"}, "<factor>"},
+        {{"id"}, "<factor>"}
+    };
 
-    if (!factor()) { indentPop(); return false; }
-    if (!termPrime()) { indentPop(); return false; }
+    for (auto& rule : rules) {
+        auto rhs = rule.first;
+        string lhs = rule.second;
 
-    indentPop();
-    return true;
-}
+        if (stack.size() < rhs.size()) continue;
 
-// <term'> → * <factor> <term'> | / <factor> <term'> | ε
-bool Parser::termPrime() {
-    if (peek().type == TokenType::MUL || peek().type == TokenType::DIV) {
-        printNode("<term'>");
-        indentPush();
-
-        while (peek().type == TokenType::MUL || peek().type == TokenType::DIV) {
-            if (match(TokenType::MUL)) {
-                printNode("*");
-            } else {
-                match(TokenType::DIV);
-                printNode("/");
+        bool match = true;
+        for (int i = 0; i < rhs.size(); i++) {
+            if (stack[stack.size() - rhs.size() + i].symbol != rhs[i]) {
+                match = false;
+                break;
             }
-
-            if (!factor()) { indentPop(); return false; }
         }
 
-        // handle tail
-        if (!termPrime()) { indentPop(); return false; } // tail recursion (safe)
-        indentPop();
-        return true;
-    }
+        if (match) {
+            // Prevent premature reduction of 'id' into <factor> when next token is '='
+            if (pos < tokens.size()) {
+                string next = tokens[pos].lexeme;
+                // Prevent reducing <term> → <factor> if next is * or /
+                if (rhs == vector<string>{"<term>"} && (next == "*" || next == "/"))
+                    continue;
+                // Prevent reducing id → <factor> when followed by '=' 
+                if (rhs == vector<string>{"id"} && next == "=")
+                    continue;
+            }
 
-    // epsilon
-    return true;
-}
+            // --- Perform Reduction ---
+            Node* parent = new Node(lhs);
+            for (int i = 0; i < rhs.size(); i++) {
+                parent->children.push_back(stack[stack.size() - rhs.size() + i].node);
+            }
+            for (int i = 0; i < rhs.size(); i++) stack.pop_back();
+            stack.push_back({lhs, parent});
 
-// <factor> → id | int | ( <expr> )
-bool Parser::factor() {
-    printNode("<factor>");
-    indentPush();
+            cout << "Reduce: " << lhs << " → ";
+            for (auto s : rhs) cout << s << " ";
+            cout << "\n";
 
-    if (match(TokenType::IDENTIFIER)) {
-        printNode("id");
-        indentPop();
-        return true;
+            return true;
+        }
     }
-    if (match(TokenType::NUMBER)) {
-        printNode("int");
-        indentPop();
-        return true;
-    }
-    if (match(TokenType::LPAREN)) {
-        printNode("(");
-        // parse inner expression at increased indent
-        if (!expr()) { indentPop(); return false; }
-        if (!expect(TokenType::RPAREN)) { indentPop(); return false; }
-        printNode(")");
-        indentPop();
-        return true;
-    }
-
-    error("Invalid <factor> (expected id, int, or (expr)).");
-    indentPop();
     return false;
 }
 
-// Entry point
-bool Parser::parse() {
-    bool result = stmt();
-    if (!atEnd()) {
-        error("Extra tokens after complete statement.");
-        return false;
+// print a single, clear error (pos points at the token that caused the problem)
+void handleParseError(const vector<Token>& tokens) {
+    cout << "Parsing failed. Analyzing tokens for possible syntax errors...\n";
+
+    // Example: simple heuristic checks
+    if (tokens.empty()) {
+        cout << "No tokens found.\n";
+        return;
     }
-    return result && valid_;
+
+    // Check for missing identifier at start
+    if (tokens[0].type != TokenType::IDENTIFIER) {
+        cout << "SyntaxError: expected identifier at beginning, found '"
+             << tokens[0].lexeme << "'\n";
+        return;
+    }
+
+    // Check for missing semicolon at end
+    if (tokens[tokens.size()-2].type != TokenType::SEMICOLON) { 
+        // last token is END
+        cout << "SyntaxError: expected ';' at end of statement\n";
+        return;
+    }
+
+    // General operator-operand mismatch
+    for (size_t i = 0; i < tokens.size()-1; i++) {
+        bool isOperator = (tokens[i].type == TokenType::PLUS || tokens[i].type == TokenType::MINUS ||
+                           tokens[i].type == TokenType::MUL || tokens[i].type == TokenType::DIV);
+        if (isOperator) {
+            // check left operand exists
+            if (i == 0 || !(tokens[i-1].type == TokenType::IDENTIFIER || tokens[i-1].type == TokenType::NUMBER || tokens[i-1].type == TokenType::RPAREN)) {
+                cout << "SyntaxError: expected operand before '" << tokens[i].lexeme
+                     << "' at position " << i << "\n";
+                return;
+            }
+            // check right operand exists
+            if (!(tokens[i+1].type == TokenType::IDENTIFIER || tokens[i+1].type == TokenType::NUMBER || tokens[i+1].type == TokenType::LPAREN)) {
+                cout << "SyntaxError: expected operand after '" << tokens[i].lexeme
+                     << "' at position " << i << "\n";
+                return;
+            }
+        }
+    }
+
+    // Parentheses tracking
+    int parenCount = 0;
+
+    // Check for operator-operand mismatch and parentheses
+    for (size_t i = 0; i < tokens.size()-1; i++) {
+        Token curr = tokens[i];
+        Token next = tokens[i+1];
+
+        // Track parentheses
+        if (curr.type == TokenType::LPAREN) parenCount++;
+        if (curr.type == TokenType::RPAREN) parenCount--;
+
+        if (parenCount < 0) {
+            cout << "SyntaxError: unmatched ')' at position " << i << "\n";
+            return;
+        }
+
+        // Operator checks
+        if ((curr.type == TokenType::PLUS || curr.type == TokenType::MINUS ||
+             curr.type == TokenType::MUL || curr.type == TokenType::DIV) &&
+            (next.type != TokenType::NUMBER && next.type != TokenType::IDENTIFIER &&
+             next.type != TokenType::LPAREN)) 
+        {
+            cout << "SyntaxError: expected operand after '" << curr.lexeme
+                 << "' at position " << i << "\n";
+            return;
+        }
+    }
+
+    if (parenCount > 0) {
+        cout << "SyntaxError: unmatched '(' in input\n";
+        return;
+    }
+
+    cout << "Unable to determine exact syntax error.\n";
 }
+
+// void handleParseErrorFromStack(const ParseResult& res, const vector<Token>& tokens) {
+//     cout << "Parsing failed. Analyzing last reduced state...\n";
+
+//     if (res.stack.empty()) {
+//         cout << "No reductions performed.\n";
+//         return;
+//     }
+
+//     // Check for operators without operands
+//     for (size_t i = 0; i < res.stack.size(); i++) {
+//         const string& sym = res.stack[i].symbol;
+//         if (sym == "+" || sym == "-" || sym == "*" || sym == "/") {
+//             if (i == 0 || i == res.stack.size() - 1) {
+//                 cout << "SyntaxError: operator '" << sym 
+//                      << "' missing operand at position " << i << "\n";
+//                 return;
+//             }
+//             const string& left = res.stack[i-1].symbol;
+//             const string& right = res.stack[i+1].symbol;
+//             bool leftIsOperand = (left == "<expr>" || left == "<term>" ||
+//                                   left == "<factor>" || left == "id" || left == "int" || left == ")");
+//             bool rightIsOperand = (right == "<expr>" || right == "<term>" ||
+//                                    right == "<factor>" || right == "id" || right == "int" || right == "(");
+//             if (!leftIsOperand) {
+//                 cout << "SyntaxError: operator '" << sym 
+//                      << "' missing left operand at position " << i << "\n";
+//                 return;
+//             }
+//             if (!rightIsOperand) {
+//                 cout << "SyntaxError: operator '" << sym 
+//                      << "' missing right operand at position " << i << "\n";
+//                 return;
+//             }
+//         }
+//     }
+
+//     // Check for unmatched parentheses
+//     int openCount = 0;
+//     for (auto& item : res.stack) {
+//         if (item.symbol == "(") openCount++;
+//         if (item.symbol == ")") openCount--;
+//     }
+//     if (openCount > 0) cout << "SyntaxError: unmatched '(' in input\n";
+//     if (openCount < 0) cout << "SyntaxError: unmatched ')' in input\n";
+
+//     // If nothing found, fall back to generic message
+//     cout << "Unable to determine exact syntax error from stack.\n";
+// }
+
+
+

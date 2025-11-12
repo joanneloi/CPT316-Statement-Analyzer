@@ -18,8 +18,8 @@ enum class TokenType {
 
 struct Token {
     TokenType type;
-    string lexeme;  // exact text
-    int position;        // 0-based index in the original input
+    string lexeme;      // exact text
+    int position;       // 0-based index in the original input
 };
 
 

@@ -8,10 +8,10 @@ using namespace std;
 struct Node {
     string label;
     vector<Node*> children;
-    Node(string l) : label(l) {}
+    string errorMsg; // store syntax error message if any
+
+    Node(const string& lbl) : label(lbl) {}
 };
-
-
 
 class Parser {
 public:
@@ -31,6 +31,14 @@ private:
     void shift();
     bool tryReduce();
 
+    void syntaxError(const string& message, int position);
+
 };
 
 void printTree(Node* root, int depth);
+
+struct ParserError {
+    string message;
+    int position;
+};
+

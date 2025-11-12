@@ -2,54 +2,46 @@
 #include "lexer.h"
 #include <vector>
 #include <string>
+using namespace std;
 
+// ---------------- Parse Tree Node ----------------
 struct Node {
     string label;
     vector<Node*> children;
-    Node(string l) : label(l) {}
+
+    Node(const string& lbl) : label(lbl) {}
 };
+
+struct StackItem {
+    string symbol;
+    Node* node;
+};
+
+struct ParseResult {
+    bool success;
+    Node* parseTree;
+    vector<StackItem> stack;  // can now use StackItem
+    int errorPos;
+    string message;
+};
+
 
 class Parser {
 public:
-    explicit Parser(const std::vector<Token>& tokens);
-    bool parse(); // entry point (for <stmt>)
-    
-    void printTree(Node* root, int indent = 0);
+    explicit Parser(const vector<Token>& tokens);
+    ParseResult parse();
 
 private:
-    const std::vector<Token>& tokens_;
-    int pos_; // current token index
+    const vector<Token>& tokens;
+    int pos;
 
-    // grammar rule methods (same names)
-    bool stmt();
-    bool expr();
-    bool exprPrime();
-    bool term();
-    bool termPrime();
-    bool factor();
+    vector<StackItem> stack;
 
-    // utility
-    bool match(TokenType type);
-    bool expect(TokenType type);
-    const Token& peek() const;
-    bool atEnd() const;
-    void error(const std::string& msg);
+    void shift();
+    bool tryReduce();
 
-    // indentation state for pretty printing
-    int indent_;
-
-    void printNode(const std::string& name); // prints at current indent
-    void indentPush(); // increase indent
-    void indentPop();  // decrease indent
-
-    bool valid_;
-
-    //To eliminate printing of parse tree with PRIME functions
-    Node* parseE();
-    Node* parseT();
-    Node* parseF();
-    
-    Token current() const;
-    void advance();
-    
 };
+
+void printTree(Node* root, int depth);
+void handleParseError(const vector<Token>& tokens);
+void handleParseErrorFromStack(const ParseResult& result, const vector<Token>& tokens);
