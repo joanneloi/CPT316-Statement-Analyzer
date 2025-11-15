@@ -29,16 +29,8 @@ static void runOnce(const string& input) {
     // 3. Run the Parser
     cout << "\n=== Parsing Result ===\n";
     Parser parser(tokens);
-    ParseResult result = parser.parse();
 
-    if (result.success) {
-        cout << "Input accepted. Parse tree:\n";
-        printTree(result.parseTree, 0);
-    } else {
-        cout << "Input rejected.\n";
-        handleParseError(tokens);
-    }
-    cout << "\n";
+    parser.parse();
 }
 
 int main(int argc, char** argv) {

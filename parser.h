@@ -15,33 +15,31 @@ struct Node {
 struct StackItem {
     string symbol;
     Node* node;
+    int position;  // position of the token in the original input
 };
 
-struct ParseResult {
-    bool success;
-    Node* parseTree;
-    vector<StackItem> stack;  // can now use StackItem
-    int errorPos;
-    string message;
+struct ParseError {
+    int errorPos;       // 0-based
+    string message;     // error message
 };
 
 
 class Parser {
 public:
     explicit Parser(const vector<Token>& tokens);
-    ParseResult parse();
+    void parse();
 
 private:
     const vector<Token>& tokens;
+    vector<ParseError> errors;
     int pos;
+    int parenCount = 0;
 
     vector<StackItem> stack;
 
     void shift();
-    bool tryReduce();
-
+    bool tryReduce(vector<ParseError>& errors);
+    void checkError();
+    void printTree(Node* root, int depth);
+    void printParseErrors(const vector<ParseError>& errors, const vector<StackItem>& stack);
 };
-
-void printTree(Node* root, int depth);
-void handleParseError(const vector<Token>& tokens);
-void handleParseErrorFromStack(const ParseResult& result, const vector<Token>& tokens);

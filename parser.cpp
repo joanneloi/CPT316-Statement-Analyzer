@@ -5,52 +5,37 @@
 #include "parser.h"
 using namespace std;
 
-// Utility: print parse tree
-void printTree(Node* node, int depth = 0) {
-    for (int i = 0; i < depth; ++i) cout << "  ";
-    cout << node->label << "\n";
-    for (auto* child : node->children)
-        printTree(child, depth + 1);
-}
-
-// ---------------- Bottom-Up Parser ----------------
-
-
 Parser::Parser(const vector<Token>& t) : tokens(t), pos(0) {}
 
 // --- parse loop: only one place for syntax checks ---
-ParseResult Parser::parse() {
-    ParseResult result;
-    result.success = false;
-    result.parseTree = nullptr;
+void Parser::parse() {
+    cout << "=== SHIFT-REDUCE PARSING START ===\n";
 
     while (true) {
-        // Accepted input
+        // acceptance
         if (tokens[pos].type == TokenType::END &&
             stack.size() == 1 &&
             stack.back().symbol == "<stmt>") {
-            result.success = true;
-            result.parseTree = stack.back().node;
-            return result;
+            cout << "\nInput accepted.\n\nParse Tree:\n";
+            printTree(stack.back().node, 0);
+            return;
         }
 
-        bool reduced = tryReduce();
+        bool reduced = tryReduce(errors);
 
         if (!reduced) {
-            // Safe shift
+            // If at end-of-input -> report appropriate message (once)
             if (tokens[pos].type == TokenType::END) {
-                // Stop parsing, input ended
-                result.success = false;
-                result.stack = stack;  // capture current stack
-                result.errorPos = pos; // last token processed
-                return result;
+                printParseErrors(errors, stack);
+                return;
             }
+            // Passed checks -> safe to shift
             shift();
         }
     }
 }
 
-
+// Shift next token onto stack
 void Parser::shift() {
     Token t = tokens[pos++];
     string symbol;
@@ -74,7 +59,7 @@ void Parser::shift() {
     cout << "Shift: " << symbol << "\n";
 }
 
-bool Parser::tryReduce() {
+bool Parser::tryReduce(vector<ParseError>& errors) {
     // Grammar rules (RHS → LHS)
     vector<pair<vector<string>, string>> rules = {
         {{"id", "=", "<expr>", ";"}, "<stmt>"},
@@ -123,145 +108,115 @@ bool Parser::tryReduce() {
             for (int i = 0; i < rhs.size(); i++) stack.pop_back();
             stack.push_back({lhs, parent});
 
-            cout << "Reduce: " << lhs << " → ";
-            for (auto s : rhs) cout << s << " ";
-            cout << "\n";
-
             return true;
-        }
+        } 
+       
     }
+    checkError();
     return false;
 }
 
-// print a single, clear error (pos points at the token that caused the problem)
-void handleParseError(const vector<Token>& tokens) {
-    cout << "Parsing failed. Analyzing tokens for possible syntax errors...\n";
+void Parser::checkError() {
+    // --- OPERATOR OPERAND CHECK ---
+    if (stack.empty()) return;
+    string left = stack[stack.size()-2].symbol;
+    int currentPos = pos-1;
+    if(stack.back().node->label == "+" || stack.back().node->label == "-" ||
+       stack.back().node->label == "*" || stack.back().node->label == "/"){
+        if (left != "<expr>" && left != "<term>"){
+            errors.push_back({pos - 1, "missing operand before " + tokens[currentPos].lexeme});
+        }    
+        
+        if (tokens[pos].type != TokenType::NUMBER && tokens[pos].type != TokenType::IDENTIFIER){
+            errors.push_back({pos -1 , "missing operand after " + tokens[currentPos].lexeme});
+        }
+    }    
 
-    // Example: simple heuristic checks
-    if (tokens.empty()) {
-        cout << "No tokens found.\n";
-        return;
-    }
-
-    // Check for missing identifier at start
-    if (tokens[0].type != TokenType::IDENTIFIER) {
-        cout << "SyntaxError: expected identifier at beginning, found '"
-             << tokens[0].lexeme << "'\n";
-        return;
-    }
-
-    // Check for missing semicolon at end
-    if (tokens[tokens.size()-2].type != TokenType::SEMICOLON) { 
-        // last token is END
-        cout << "SyntaxError: expected ';' at end of statement\n";
-        return;
-    }
-
-    // General operator-operand mismatch
-    for (size_t i = 0; i < tokens.size()-1; i++) {
-        bool isOperator = (tokens[i].type == TokenType::PLUS || tokens[i].type == TokenType::MINUS ||
-                           tokens[i].type == TokenType::MUL || tokens[i].type == TokenType::DIV);
-        if (isOperator) {
-            // check left operand exists
-            if (i == 0 || !(tokens[i-1].type == TokenType::IDENTIFIER || tokens[i-1].type == TokenType::NUMBER || tokens[i-1].type == TokenType::RPAREN)) {
-                cout << "SyntaxError: expected operand before '" << tokens[i].lexeme
-                     << "' at position " << i << "\n";
-                return;
-            }
-            // check right operand exists
-            if (!(tokens[i+1].type == TokenType::IDENTIFIER || tokens[i+1].type == TokenType::NUMBER || tokens[i+1].type == TokenType::LPAREN)) {
-                cout << "SyntaxError: expected operand after '" << tokens[i].lexeme
-                     << "' at position " << i << "\n";
-                return;
+    // --- PARENTHESIS ERROR CHECK: Missing ')' ---
+    if (pos < tokens.size() && tokens[pos].lexeme == "(") {
+        // Look backward in stack for "("
+        bool hasCloseParen = false;
+        for (int i = stack.size() - 1; i >= 0; --i) {
+            if (stack[i].symbol == ")") {
+                hasCloseParen = true;
+                break;
             }
         }
-    }
 
-    // Parentheses tracking
-    int parenCount = 0;
+        if (!hasCloseParen){
+            int found = 0;
+            int errorPos = pos;  // default fallback
 
-    // Check for operator-operand mismatch and parentheses
-    for (size_t i = 0; i < tokens.size()-1; i++) {
-        Token curr = tokens[i];
-        Token next = tokens[i+1];
+            for (int i = pos; i < tokens.size(); i++) {
+                string t = tokens[i].lexeme;
 
-        // Track parentheses
-        if (curr.type == TokenType::LPAREN) parenCount++;
-        if (curr.type == TokenType::RPAREN) parenCount--;
+                bool isBreak =
+                    (t == "+" || t == "-" || t == "*" ||
+                    t == "/" || t == ";" || t == ")");
 
-        if (parenCount < 0) {
-            cout << "SyntaxError: unmatched ')' at position " << i << "\n";
+                if (isBreak) {
+                    found++;
+                    if (found == 2) {       // second occurrence
+                        errorPos = i;
+                        break;
+                    }
+                }
+            }
+            string errorToken = tokens[errorPos].lexeme;
+
+            errors.push_back({errorPos, "expected ')' before '" + errorToken + "'" });
             return;
         }
 
-        // Operator checks
-        if ((curr.type == TokenType::PLUS || curr.type == TokenType::MINUS ||
-             curr.type == TokenType::MUL || curr.type == TokenType::DIV) &&
-            (next.type != TokenType::NUMBER && next.type != TokenType::IDENTIFIER &&
-             next.type != TokenType::LPAREN)) 
-        {
-            cout << "SyntaxError: expected operand after '" << curr.lexeme
-                 << "' at position " << i << "\n";
+    }
+
+    // --- PARENTHESIS ERROR CHECK: Missing '(' ---
+    if (pos < tokens.size() && tokens[pos].lexeme == ")") {
+        // Look backward in stack for "("
+        bool hasOpenParen = false;
+        for (int i = stack.size() - 1; i >= 0; --i) {
+            if (stack[i].symbol == "(") {
+                hasOpenParen = true;
+                break;
+            }
+        }
+
+        // If there is no '(' in the stack, then we cannot match ')'
+        if (!hasOpenParen) {
+            int errorPos = tokens[pos].position; // position of ')'
+            errors.push_back({
+                errorPos,
+                "expected '(' before ')'"
+            });
             return;
         }
     }
-
-    if (parenCount > 0) {
-        cout << "SyntaxError: unmatched '(' in input\n";
-        return;
-    }
-
-    cout << "Unable to determine exact syntax error.\n";
 }
 
-// void handleParseErrorFromStack(const ParseResult& res, const vector<Token>& tokens) {
-//     cout << "Parsing failed. Analyzing last reduced state...\n";
+//print parse tree
+void Parser::printTree(Node* node, int depth) {
+    for (int i = 0; i < depth; ++i) cout << "  ";
+    cout << node->label << "\n";
+    for (auto* child : node->children)
+        printTree(child, depth + 1);
+}
 
-//     if (res.stack.empty()) {
-//         cout << "No reductions performed.\n";
-//         return;
-//     }
-
-//     // Check for operators without operands
-//     for (size_t i = 0; i < res.stack.size(); i++) {
-//         const string& sym = res.stack[i].symbol;
-//         if (sym == "+" || sym == "-" || sym == "*" || sym == "/") {
-//             if (i == 0 || i == res.stack.size() - 1) {
-//                 cout << "SyntaxError: operator '" << sym 
-//                      << "' missing operand at position " << i << "\n";
-//                 return;
-//             }
-//             const string& left = res.stack[i-1].symbol;
-//             const string& right = res.stack[i+1].symbol;
-//             bool leftIsOperand = (left == "<expr>" || left == "<term>" ||
-//                                   left == "<factor>" || left == "id" || left == "int" || left == ")");
-//             bool rightIsOperand = (right == "<expr>" || right == "<term>" ||
-//                                    right == "<factor>" || right == "id" || right == "int" || right == "(");
-//             if (!leftIsOperand) {
-//                 cout << "SyntaxError: operator '" << sym 
-//                      << "' missing left operand at position " << i << "\n";
-//                 return;
-//             }
-//             if (!rightIsOperand) {
-//                 cout << "SyntaxError: operator '" << sym 
-//                      << "' missing right operand at position " << i << "\n";
-//                 return;
-//             }
-//         }
-//     }
-
-//     // Check for unmatched parentheses
-//     int openCount = 0;
-//     for (auto& item : res.stack) {
-//         if (item.symbol == "(") openCount++;
-//         if (item.symbol == ")") openCount--;
-//     }
-//     if (openCount > 0) cout << "SyntaxError: unmatched '(' in input\n";
-//     if (openCount < 0) cout << "SyntaxError: unmatched ')' in input\n";
-
-//     // If nothing found, fall back to generic message
-//     cout << "Unable to determine exact syntax error from stack.\n";
-// }
-
-
-
+//print parse errors
+void Parser::printParseErrors(const vector<ParseError>& errors, const vector<StackItem>& stack){
+    // Check if the first token (bottom of stack) is not an identifier (invalid start)
+    cout << "\nInput rejected.\n";
+    cout << "Parse Errors:\n";
+    if (!stack.empty() && stack.front().symbol != "id") {
+        cout << "SyntaxError at beginning of input: missing an identifier ('id').\n";
+    }
+    // Check if last shifted symbol was a semicolon
+    if (!stack.empty() && stack.back().symbol != ";") {
+        cout << "SyntaxError at end of input: missing ';'\n";
+    }
+    
+    if (errors.empty()) return;
+    for (const auto& e : errors) {
+        cout << "   ParseError at position " << e.errorPos << ": " << e.message << "\n";
+    }
+    cout << "\n";
+}

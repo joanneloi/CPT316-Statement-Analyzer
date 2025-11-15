@@ -37,7 +37,7 @@ struct TokenCounts {
     }
 };
 
-TokenCounts countTokens(const std::vector<Token>& tokens);
+TokenCounts countTokens(const vector<Token>& tokens);
 void printCounts(const TokenCounts& c);
 
 // ---------- LexicalError model ----------
@@ -46,7 +46,7 @@ struct LexicalError {
     string message;      // e.g., "invalid character '$'"
 };
 
-void printLexicalErrors(const std::vector<LexicalError>& errors);
+void printLexicalErrors(const vector<LexicalError>& errors);
 
 // ---------- Lexer ----------
 class Lexer {
