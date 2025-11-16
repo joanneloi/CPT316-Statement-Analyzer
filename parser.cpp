@@ -92,7 +92,7 @@ bool Parser::tryReduce(vector<ParseError>& errors) {
             // Prevent premature reduction of 'id' into <factor> when next token is '='
             if (pos < tokens.size()) {
                 string next = tokens[pos].lexeme;
-                // Prevent reducing <term> → <factor> if next is * or /
+                // Prevent reducing <term> → <expr> if next is * or /
                 if (rhs == vector<string>{"<term>"} && (next == "*" || next == "/"))
                     continue;
                 // Prevent reducing id → <factor> when followed by '=' 

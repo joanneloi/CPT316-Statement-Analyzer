@@ -172,7 +172,6 @@ void printCounts(const TokenCounts& c) {
 }
 
 void printLexicalErrors(const vector<LexicalError>& errors) {
-    if (errors.empty()) return;
     cout << "Lexical Errors:\n";
     for (const auto& e : errors) {
         cout << "  LexicalError at position " << e.position << ": " << e.message << "\n";

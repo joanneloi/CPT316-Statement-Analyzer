@@ -18,10 +18,10 @@ static void runOnce(const string& input) {
     printTokenStream(tokens);
     TokenCounts counts = countTokens(tokens);
     printCounts(counts);
-    printLexicalErrors(errors);
 
-    // 2. If lexical errors exist → do not parse
+    // 2. If lexical errors exist → print the error and do not parse
     if (!errors.empty()) {
+        printLexicalErrors(errors);
         cout << "\nSkipping parser because lexical errors were found.\n";
         return;
     }
@@ -35,28 +35,6 @@ static void runOnce(const string& input) {
 
 int main(int argc, char** argv) {
     ios::sync_with_stdio(false);
-
-    // Batch mode if "--batch" is provided //easier for video record
-    if (argc >= 2 && string(argv[1]) == "--batch") {
-        vector<string> cases = {
-            "x = y + 3;",
-            "a = (b + c) * d;",
-            "total = m / (n - p);",
-            "x = y + ;",
-            "num = 5.5;"
-        };
-
-        cout << "=== COMPY Lexer: Batch Mode ===\n\n";
-        int caseNo = 1;
-        for (const auto& s : cases) {
-            cout << "--------------------- Test Case " << caseNo++ << " ---------------------\n";
-            runOnce(s);
-        }
-        cout << "============== End of Batch ==============\n";
-        return 0;
-    }
-
-
     // single-line mode
     cout << "Enter a single-line COMPY statement (e.g., x = (3 + 5) * 2;):\n" << endl;
     string line;
