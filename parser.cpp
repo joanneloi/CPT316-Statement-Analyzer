@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <fstream>
 #include "lexer.h"
 #include "parser.h"
 using namespace std;
@@ -9,15 +10,26 @@ Parser::Parser(const vector<Token>& t) : tokens(t), pos(0) {}
 
 // --- parse loop: only one place for syntax checks ---
 void Parser::parse() {
-    cout << "=== SHIFT-REDUCE PARSING START ===\n";
-
     while (true) {
         // acceptance
         if (tokens[pos].type == TokenType::END &&
             stack.size() == 1 &&
             stack.back().symbol == "<stmt>") {
-            cout << "\nInput accepted.\n\nParse Tree:\n";
-            printTree(stack.back().node, 0);
+            cout << "Input accepted.\n\nParse Tree: ";
+
+            // ---- generate DOT file for parse tree ----
+            ofstream out("parse_tree.dot");
+            out << "digraph ParseTree {\n";
+            out << "  rankdir=TB;\n";          // vertical orientation (top-down)
+            out << "  node [shape=box, fontsize=12];\n";
+            printTree(stack.back().node, out);
+            out << "}\n";
+            out.close();
+
+            cout << "\nDOT file for parse tree generated: parse_tree.dot\n";
+            cout << "Generate image with:\n";
+            cout << "    dot -Tpng parse_tree.dot -o parse_tree.png\n\n";
+
             return;
         }
 
@@ -56,7 +68,6 @@ void Parser::shift() {
 
     Node* node = new Node(symbol);
     stack.push_back({symbol, node});
-    cout << "Shift: " << symbol << "\n";
 }
 
 bool Parser::tryReduce(vector<ParseError>& errors) {
@@ -193,14 +204,6 @@ void Parser::checkError() {
     }
 }
 
-//print parse tree
-void Parser::printTree(Node* node, int depth) {
-    for (int i = 0; i < depth; ++i) cout << "  ";
-    cout << node->label << "\n";
-    for (auto* child : node->children)
-        printTree(child, depth + 1);
-}
-
 //print parse errors
 void Parser::printParseErrors(const vector<ParseError>& errors, const vector<StackItem>& stack){
     // Check if the first token (bottom of stack) is not an identifier (invalid start)
@@ -219,4 +222,15 @@ void Parser::printParseErrors(const vector<ParseError>& errors, const vector<Sta
         cout << "   ParseError at position " << e.errorPos << ": " << e.message << "\n";
     }
     cout << "\n";
+}
+
+void Parser::printTree(Node* node, ofstream& out) {
+    // Use the memory address as a unique node ID (prevents name conflicts)
+    out << "  node" << node
+        << " [label=\"" << node->label << "\"];\n";
+
+    for (auto* child : node->children) {
+        out << "  node" << node << " -> node" << child << ";\n";
+        printTree(child, out);
+    }
 }

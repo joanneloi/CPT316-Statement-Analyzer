@@ -40,6 +40,7 @@ private:
     void shift();
     bool tryReduce(vector<ParseError>& errors);
     void checkError();
-    void printTree(Node* root, int depth);
+    void printTree(Node* node, ofstream& out);
     void printParseErrors(const vector<ParseError>& errors, const vector<StackItem>& stack);
 };
+
