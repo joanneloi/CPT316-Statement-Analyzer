@@ -89,9 +89,4 @@ The parser builds an explicit tree of grammar reductions. After a successful par
    ```
 3. Open `parse_tree.png` to verify the derivation.
 
-## Extending the Analyzer
-- Add new tokens by extending `TokenType` plus the scanning logic in `lexer.cpp`.
-- Update the grammar rules in `parser.cpp::tryReduce` to support new constructs.
-- Enhance diagnostics by enriching `checkError` or emitting additional context in `printParseErrors`.
 
-The project purposefully keeps every stage isolated lexer, parser, visualization
