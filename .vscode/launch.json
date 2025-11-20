@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/joanneloi/Downloads/Documents/USM/Y3S1/CPT316/Assignment/CPT316-Statement-Analyzer-1",
+      "program": "/Users/joanneloi/Downloads/Documents/USM/Y3S1/CPT316/Assignment/CPT316-Statement-Analyzer-1/build/Debug/outDebug"
+    }
+  ]
+}
