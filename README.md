@@ -1,5 +1,10 @@
 # CPT316-Statement-Analyzer
 
+## Members:
+JOANNE LOI JIN XU, 22303573
+LIM YI JIE, 22304136
+GOH SHU YING, 22305493
+SAW YEE XUAN, 22305488
 
 ## Features
 - **Lexical analysis** – tokenizes identifiers, numbers, operators, parentheses, assignment, and semicolons while rejecting invalid characters, multi-letter identifiers, and alphanumeric mixes such as `a123`.
@@ -88,5 +93,8 @@ The parser builds an explicit tree of grammar reductions. After a successful par
    dot -Tpng parse_tree.dot -o parse_tree.png
    ```
 3. Open `parse_tree.png` to verify the derivation.
+
+Example parse tree:
+<img width="502" height="667" alt="image" src="https://github.com/user-attachments/assets/81203244-7058-421f-b7e2-f9dabf11ffb5" />
 
 
