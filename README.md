@@ -15,6 +15,7 @@ Tokens
 ├─Assignment: =
 ├─Parentheses: ( )
 └─Statement terminator: ;
+```markdown
 
 ```text
 Grammar
@@ -22,6 +23,7 @@ Grammar
 ├─<expr> → <term> | <expr> ‘+’ <term> | <expr> ‘-’ <term>
 ├─<term> → <factor> | <term> ‘*’ <factor> | <term> ‘/’ <factor>
 └─<factor> → id | int | ( <expr> )
+```markdown
 
 ## Team Member
 - Joanne Loi Jin XU
@@ -40,3 +42,4 @@ CPT316-Statement-Analyzer-1/
 ├─ parse_tree.dot        # DOT representation of the parse tree
 ├─ parse_tree.png        # Rendered parse tree image
 └─ README.md
+```markdown  
