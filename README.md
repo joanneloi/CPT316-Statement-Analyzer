@@ -3,6 +3,7 @@ This project implements a simple Statement Analyzer for the CPT316 coursework. I
 The analyzer checks lexical validity, parses input according to the grammar rules, reports syntax errors, and generates a parse tree. 
 
 ##Project Structure
+```text
 CPT316-Statement-Analyzer-1/
 ├─ main.cpp             
 ├─ lexer.h
