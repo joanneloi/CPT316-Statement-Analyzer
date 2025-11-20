@@ -1,10 +1,13 @@
 # CPT316-Statement-Analyzer
 
 ## Members:
-JOANNE LOI JIN XU, 22303573
-LIM YI JIE, 22304136
-GOH SHU YING, 22305493
-SAW YEE XUAN, 22305488
+- JOANNE LOI JIN XU, 22303573
+  
+- LIM YI JIE, 22304136
+  
+- GOH SHU YING, 22305493
+  
+- SAW YEE XUAN, 22305488
 
 ## Features
 - **Lexical analysis** – tokenizes identifiers, numbers, operators, parentheses, assignment, and semicolons while rejecting invalid characters, multi-letter identifiers, and alphanumeric mixes such as `a123`.
