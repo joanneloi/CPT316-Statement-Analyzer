@@ -4,11 +4,11 @@ The analyzer checks lexical validity, parses input according to the grammar rule
 
 ##Project Structure
 CPT316-Statement-Analyzer-1/
-├── main.cpp             
-├── lexer.h
-├── lexer.cpp
-├── parser.h
-├── parser.cpp
-├── parse_tree.dot        # DOT representation of the parse tree
-├── parse_tree.png        # Rendered parse tree image
-└── README.md
+├─ main.cpp             
+├─ lexer.h
+├─ lexer.cpp
+├─ parser.h
+├─ parser.cpp
+├─ parse_tree.dot        # DOT representation of the parse tree
+├─ parse_tree.png        # Rendered parse tree image
+└─ README.md
